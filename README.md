@@ -49,6 +49,21 @@ The system supports multiple virtual meters, configurable meter parameters, loca
 - Basic counter-reset protection.
 - JSON generation for meter readings.
 
+### System Programming Layer
+
+The C++ pulse processor provides the low-level system programming layer of the project.
+
+- File I/O using `ifstream` and `ofstream`.
+- Windows OS interaction using `GetCurrentDirectoryA()` and `Sleep()`.
+- Command-line argument handling using `argc` and `argv`.
+- Environment-variable access using `getenv()`.
+- External process execution using `system()` to invoke `curl`.
+- Process return-code and error handling.
+- Time measurement using `std::chrono::steady_clock`.
+- Continuous meter-processing loop with controlled execution intervals.
+- Local persistent buffering for failed readings.
+- Store-and-forward mechanism for recovering unsent readings.
+
 ### Backend
 
 - FastAPI REST backend.
