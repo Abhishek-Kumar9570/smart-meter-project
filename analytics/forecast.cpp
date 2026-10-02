@@ -46,6 +46,7 @@ int main(int argc, char* argv[])
         string id;
         string pulseText;
         string energyText;
+        string cumulativeText;
         string powerText;
         string costText;
 
@@ -55,6 +56,7 @@ int main(int argc, char* argv[])
             !getline(ss, id, ',') ||
             !getline(ss, pulseText, ',') ||
             !getline(ss, energyText, ',') ||
+            !getline(ss, cumulativeText, ',') ||
             !getline(ss, powerText, ',') ||
             !getline(ss, costText)) {
             continue;
