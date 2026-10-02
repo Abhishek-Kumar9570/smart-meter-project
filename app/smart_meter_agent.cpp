@@ -1,4 +1,5 @@
 #include <chrono>
+#include <curl/curl.h>
 #include <ctime>
 #include <cmath>
 #include <fcntl.h>
@@ -25,11 +26,12 @@ struct MeterConfig {
     double impulseConstant;
     double costPerKWh;
     int sampleIntervalSeconds;
+    string cloudEndpoint;
 };
 
 MeterConfig loadMeterConfig(const string& meterId)
 {
-    MeterConfig config{1600.0, 15.0, 5};
+    MeterConfig config{1600.0, 15.0, 5, "http://127.0.0.1:8080/"};
 
     ifstream file("data/meter_configs.txt");
 
@@ -48,15 +50,18 @@ MeterConfig loadMeterConfig(const string& meterId)
         string impulseText;
         string costText;
         string intervalText;
+        string endpointText;
 
         stringstream ss(line);
 
         if (!getline(ss, id, ',') ||
             !getline(ss, impulseText, ',') ||
             !getline(ss, costText, ',') ||
-            !getline(ss, intervalText)) {
+            !getline(ss, intervalText, ',')) {
             continue;
         }
+
+        getline(ss, endpointText);
 
         if (id != meterId) {
             continue;
@@ -71,6 +76,10 @@ MeterConfig loadMeterConfig(const string& meterId)
                 config.impulseConstant = impulse;
                 config.costPerKWh = cost;
                 config.sampleIntervalSeconds = interval;
+
+                if (!endpointText.empty()) {
+                    config.cloudEndpoint = endpointText;
+                }
             }
         }
         catch (...) {
@@ -235,6 +244,67 @@ void saveReading(const MeterReading& reading)
 }
 
 
+bool sendToCloud(
+    const MeterReading& reading,
+    const MeterConfig& config)
+{
+    CURL* curl = curl_easy_init();
+
+    if (!curl) {
+        cerr << "Cloud Sync      : FAILED (libcurl initialization)\n";
+        return false;
+    }
+
+    ostringstream json;
+    json << fixed << setprecision(6)
+         << "{"
+         << "\"meterId\":\"" << reading.meterId << "\","
+         << "\"pulseCount\":" << reading.pulseCount << ","
+         << "\"energyKWh\":" << reading.energyKWh << ","
+         << "\"cumulativeEnergyKWh\":" << reading.cumulativeEnergyKWh << ","
+         << "\"powerW\":" << reading.powerW << ","
+         << "\"costRs\":" << reading.cost
+         << "}";
+
+    const string payload = json.str();
+
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    curl_easy_setopt(curl, CURLOPT_URL, config.cloudEndpoint.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload.c_str());
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 5L);
+
+    CURLcode result = curl_easy_perform(curl);
+
+    long httpCode = 0;
+
+    if (result == CURLE_OK) {
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+    }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
+
+    if (result == CURLE_OK && httpCode >= 200 && httpCode < 300) {
+        cout << "Cloud Sync      : SENT (HTTP " << httpCode << ")\n";
+        return true;
+    }
+
+    cout << "Cloud Sync      : FAILED";
+
+    if (result != CURLE_OK) {
+        cout << " (" << curl_easy_strerror(result) << ")";
+    } else {
+        cout << " (HTTP " << httpCode << ")";
+    }
+
+    cout << "\n";
+    return false;
+}
+
 void checkAnomalies(
     long previousPulses,
     long currentPulses,
@@ -301,6 +371,7 @@ int main(int argc, char* argv[])
     cout << "Cost per kWh    : Rs. " << config.costPerKWh << "\n";
     cout << "Sample Interval : " << config.sampleIntervalSeconds
          << " seconds\n";
+    cout << "Cloud Endpoint  : " << config.cloudEndpoint << "\n";
 
     int deviceFd = open("/dev/virtual_meter", O_RDONLY);
 
@@ -362,6 +433,7 @@ int main(int argc, char* argv[])
         printReading(reading);
         checkAnomalies(previousPulses, currentPulses, reading);
         saveReading(reading);
+        sendToCloud(reading, config);
 
         previousPulses = currentPulses;
         previousTime = currentTime;
