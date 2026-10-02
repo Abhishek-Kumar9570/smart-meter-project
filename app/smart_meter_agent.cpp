@@ -308,6 +308,8 @@ bool sendToCloud(
 void checkAnomalies(
     long previousPulses,
     long currentPulses,
+    double previousPowerW,
+    bool hasPreviousReading,
     const MeterReading& reading)
 {
     long pulseChange = currentPulses - previousPulses;
@@ -322,6 +324,11 @@ void checkAnomalies(
     }
     else if (reading.powerW > 5000.0) {
         cout << "POWER SPIKE DETECTED";
+    }
+    else if (hasPreviousReading &&
+             previousPowerW > 1000.0 &&
+             reading.powerW < previousPowerW * 0.5) {
+        cout << "SUDDEN POWER DROP DETECTED";
     }
     else if (pulseChange >= 20) {
         cout << "SUDDEN PULSE INCREASE";
@@ -392,6 +399,8 @@ int main(int argc, char* argv[])
     auto previousTime = chrono::steady_clock::now();
 
     double cumulativeEnergyKWh = loadCumulativeEnergy(meterId);
+    double previousPowerW = 0.0;
+    bool hasPreviousReading = false;
 
     cout << "Initial pulse count: "
          << previousPulses << "\n";
@@ -431,10 +440,17 @@ int main(int argc, char* argv[])
         reading.cumulativeEnergyKWh = cumulativeEnergyKWh;
 
         printReading(reading);
-        checkAnomalies(previousPulses, currentPulses, reading);
+        checkAnomalies(
+            previousPulses,
+            currentPulses,
+            previousPowerW,
+            hasPreviousReading,
+            reading);
         saveReading(reading);
         sendToCloud(reading, config);
 
+        previousPowerW = reading.powerW;
+        hasPreviousReading = true;
         previousPulses = currentPulses;
         previousTime = currentTime;
     }
