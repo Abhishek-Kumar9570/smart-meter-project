@@ -21,11 +21,17 @@ string getAnomalyStatus(
     const Reading& current,
     const Reading* previous)
 {
-    if (previous != nullptr && current.pulses < 0) {
+    if (previous == nullptr) {
+        return "NORMAL";
+    }
+
+    long pulseChange = current.pulses - previous->pulses;
+
+    if (pulseChange < 0) {
         return "TAMPER/COUNTER RESET";
     }
 
-    if (current.pulses == 0) {
+    if (pulseChange == 0) {
         return "NO-PULSE";
     }
 
@@ -33,13 +39,12 @@ string getAnomalyStatus(
         return "POWER SPIKE";
     }
 
-    if (previous != nullptr &&
-        previous->power > 1000.0 &&
+    if (previous->power > 1000.0 &&
         current.power < previous->power * 0.5) {
         return "POWER DROP";
     }
 
-    if (current.pulses >= 20) {
+    if (pulseChange >= 20) {
         return "PULSE INCREASE";
     }
 
