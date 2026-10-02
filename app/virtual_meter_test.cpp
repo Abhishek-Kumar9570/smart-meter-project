@@ -31,11 +31,6 @@ int main()
 
     cout << "Pulse count written: 10\n";
 
-    if (lseek(fd, 0, SEEK_SET) < 0) {
-        cerr << "ERROR: Failed to reset device position.\n";
-        close(fd);
-        return 1;
-    }
 
     char buffer[64] = {0};
 
