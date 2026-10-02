@@ -28,6 +28,7 @@ int main(int argc, char* argv[])
     string lastMeterId;
     long lastPulses = 0;
     double lastEnergy = 0.0;
+    double lastCumulative = 0.0;
     double lastPower = 0.0;
     double lastCost = 0.0;
 
@@ -42,6 +43,7 @@ int main(int argc, char* argv[])
         string meterId;
         string pulseText;
         string energyText;
+        string cumulativeText;
         string powerText;
         string costText;
 
@@ -51,6 +53,7 @@ int main(int argc, char* argv[])
             !getline(ss, meterId, ',') ||
             !getline(ss, pulseText, ',') ||
             !getline(ss, energyText, ',') ||
+            !getline(ss, cumulativeText, ',') ||
             !getline(ss, powerText, ',') ||
             !getline(ss, costText)) {
             continue;
@@ -65,6 +68,7 @@ int main(int argc, char* argv[])
             lastMeterId = meterId;
             lastPulses = stol(pulseText);
             lastEnergy = stod(energyText);
+            lastCumulative = stod(cumulativeText);
             lastPower = stod(powerText);
             lastCost = stod(costText);
         }
@@ -86,6 +90,7 @@ int main(int argc, char* argv[])
     cout << "Pulse Count       : " << lastPulses << "\n";
     cout << fixed << setprecision(6);
     cout << "Energy             : " << lastEnergy << " kWh\n";
+    cout << "Cumulative Energy  : " << lastCumulative << " kWh\n";
     cout << fixed << setprecision(2);
     cout << "Power              : " << lastPower << " W\n";
     cout << "Estimated Cost     : Rs. " << lastCost << "\n";

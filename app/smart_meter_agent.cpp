@@ -16,6 +16,7 @@ struct MeterReading {
     string meterId;
     long pulseCount;
     double energyKWh;
+    double cumulativeEnergyKWh;
     double powerW;
     double cost;
 };
@@ -147,6 +148,60 @@ MeterReading calculateReading(
     return reading;
 }
 
+double loadCumulativeEnergy(const string& meterId)
+{
+    const string filename = "data/meter_readings.csv";
+    ifstream file(filename);
+
+    if (!file) {
+        return 0.0;
+    }
+
+    string line;
+    getline(file, line); // Skip header.
+
+    double cumulativeEnergy = 0.0;
+
+    while (getline(file, line)) {
+        if (line.empty()) {
+            continue;
+        }
+
+        string timestamp;
+        string id;
+        string pulseText;
+        string energyText;
+        string cumulativeText;
+        string powerText;
+        string costText;
+
+        stringstream ss(line);
+
+        if (!getline(ss, timestamp, ',') ||
+            !getline(ss, id, ',') ||
+            !getline(ss, pulseText, ',') ||
+            !getline(ss, energyText, ',') ||
+            !getline(ss, cumulativeText, ',') ||
+            !getline(ss, powerText, ',') ||
+            !getline(ss, costText)) {
+            continue;
+        }
+
+        if (id != meterId) {
+            continue;
+        }
+
+        try {
+            cumulativeEnergy = stod(cumulativeText);
+        }
+        catch (...) {
+            continue;
+        }
+    }
+
+    return cumulativeEnergy;
+}
+
 void saveReading(const MeterReading& reading)
 {
     const string filename = "data/meter_readings.csv";
@@ -173,6 +228,7 @@ void saveReading(const MeterReading& reading)
          << reading.pulseCount << ","
          << fixed << setprecision(6)
          << reading.energyKWh << ","
+         << reading.cumulativeEnergyKWh << ","
          << reading.powerW << ","
          << reading.cost << "\n";
     file.flush();
@@ -215,6 +271,9 @@ void printReading(const MeterReading& reading)
     cout << "Energy         : "
          << fixed << setprecision(6)
          << reading.energyKWh << " kWh\n";
+    cout << "Cumulative     : "
+         << fixed << setprecision(6)
+         << reading.cumulativeEnergyKWh << " kWh\n";
     cout << "Power          : "
          << fixed << setprecision(2)
          << reading.powerW << " W\n";
@@ -261,8 +320,13 @@ int main(int argc, char* argv[])
 
     auto previousTime = chrono::steady_clock::now();
 
+    double cumulativeEnergyKWh = loadCumulativeEnergy(meterId);
+
     cout << "Initial pulse count: "
          << previousPulses << "\n";
+    cout << "Previous cumulative energy: "
+         << fixed << setprecision(6)
+         << cumulativeEnergyKWh << " kWh\n";
 
     cout << "Starting monitoring...\n";
 
@@ -291,6 +355,9 @@ int main(int argc, char* argv[])
                 currentPulses,
                 elapsedSeconds,
                 config);
+
+        cumulativeEnergyKWh += reading.energyKWh;
+        reading.cumulativeEnergyKWh = cumulativeEnergyKWh;
 
         printReading(reading);
         checkAnomalies(previousPulses, currentPulses, reading);
